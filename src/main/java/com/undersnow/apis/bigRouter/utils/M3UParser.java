@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by fedor on 25.11.2016.
@@ -30,43 +32,34 @@ public class M3UParser {
     public M3UPlaylist parseFile(InputStream inputStream) throws FileNotFoundException {
         M3UPlaylist m3UPlaylist = new M3UPlaylist();
         List<M3UItem> playlistItems = new ArrayList<>();
-        String stream = convertStreamToString(inputStream);
-        String linesArray[] = stream.split(EXT_INF);
-        for (int i = 0; i < linesArray.length; i++) {
-            String currLine = linesArray[i];
-            if (currLine.contains(EXT_M3U)) {
-                //header of file
-                if (currLine.contains(EXT_PLAYLIST_NAME)) {
-                    String fileParams = currLine.substring(EXT_M3U.length(), currLine.indexOf(EXT_PLAYLIST_NAME));
-                    String playListName = currLine.substring(currLine.indexOf(EXT_PLAYLIST_NAME) + EXT_PLAYLIST_NAME.length()).replace(":", "");
-                    m3UPlaylist.setPlaylistName(playListName);
-                    m3UPlaylist.setPlaylistParams(fileParams);
-                } else {
-                    m3UPlaylist.setPlaylistName("Noname Playlist");
-                    m3UPlaylist.setPlaylistParams("No Params");
-                }
-            } else {
-                M3UItem playlistItem = new M3UItem();
-                String[] dataArray = currLine.split(",");
-                if (dataArray[0].contains(EXT_LOGO)) {
-                    String duration = dataArray[0].substring(0, dataArray[0].indexOf(EXT_LOGO)).replace(":", "").replace("\n", "");
-                    String icon = dataArray[0].substring(dataArray[0].indexOf(EXT_LOGO) + EXT_LOGO.length()).replace("=", "").replace("\"", "").replace("\n", "");
-                    ;
-                    playlistItem.setItemDuration(duration);
-                    playlistItem.setItemIcon(icon);
-                } else {
-                    String duration = dataArray[0].replace(":", "").replace("\n", "");
-                    ;
-                    playlistItem.setItemDuration(duration);
-                    playlistItem.setItemIcon("");
-                }
-                String name = dataArray[1].substring(0, dataArray[1].indexOf(EXT_URL)).replace("\n", "");
-                String url = dataArray[1].substring(dataArray[1].indexOf(EXT_URL)).replace("\n", "");
-                playlistItem.setItemName(name);
-                playlistItem.setItemUrl(url);
-                playlistItems.add(playlistItem);
-            }
-        }
+        Scanner in = new Scanner(inputStream);
+        while (in.hasNext()) {
+			String s= in.nextLine().trim();
+			if(s.contains(EXT_M3U)) continue;
+			if(s.startsWith(EXT_INF)) {
+				
+				  M3UItem playlistItem = new M3UItem();
+				String  patternString  = "#EXTINF:(?<index>[A-Z0-9a-z\\-]+),(?<name>.+)$"  ;
+				Pattern pattern = Pattern.compile(patternString);
+				Matcher matcher = pattern.matcher(s);
+			 
+				if (matcher.find()) {
+					   playlistItem.setItemName( matcher.group("name"));
+				 
+//					System.out.println("index: " + matcher.group("index"));
+				}
+				
+	                
+	               
+	                while(in.hasNext() && (s=in.nextLine()).startsWith("#")) {
+	    				in.hasNextLine();
+	    			}
+	                if(in.hasNextLine())  { playlistItem.setItemUrl(s); playlistItems.add(playlistItem);}
+			}
+			
+		}
+        
+      
         m3UPlaylist.setPlaylistItems(playlistItems);
         return m3UPlaylist;
     }

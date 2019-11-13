@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -56,33 +58,40 @@ public class BigRouterApplication {
 
 @RestController
 class BigController {
-	@GetMapping(path = "/getTags")
-	public Tag  getTags (){
-		Tag t = new Tag(15,"98489498948");
-		return t;
-	}
+ 
 
 	@GetMapping(path = "/addedItems")
 	public List<Channel> addedItems (){
 		return  channels;
 	}
 
+	
+	@GetMapping(path = "/clearAll")
+	public Boolean clearAll (){
+		  channels.clear();
+		  return true;
+	}
 	private   List<Channel> channels = new ArrayList<>();
 
-	@GetMapping(path = "/populate")
-	public   void populate() throws FileNotFoundException {
-		File f = new File("/home/undersnow/Downloads/ar_281019_iptvgratuit_xyz-1-1.m3u");
-		try (InputStream is = new FileInputStream(f)) {
-			channels.addAll( new M3UParser().parseFile(is).getPlaylistItems().stream().map(x->x.toChannel()).collect(Collectors.toList()));
+ 
 
-
-		} catch (IOException e) {
-			e.printStackTrace();
-
-		}
+	private boolean isLinkOk(String uri) {
+		return true;
 	}
+		private boolean isLinksOk(String uri) {
+		try {
+			URL url = new URL(uri);
+			HttpURLConnection con = (HttpURLConnection) url.openConnection();
+			con.setRequestMethod("GET");
 
+			con.setInstanceFollowRedirects(false);
 
+			return con.getResponseCode() < 400;
+		} catch (Exception e) {
+			 return false;
+		}
+	
+	}
 
 	@PostMapping("/upload") // //new annotation since 4.3
 	public String singleFileUpload(@RequestParam("file") MultipartFile file,
@@ -94,8 +103,7 @@ class BigController {
 		}
 		int size = channels.size();
 		try (InputStream is =  file.getInputStream()) {
-			channels.addAll( new M3UParser().parseFile(is).getPlaylistItems().stream().map(x->x.toChannel()).collect(Collectors.toList()));
-
+			 new M3UParser().parseFile(is).getPlaylistItems().parallelStream().filter(x->isLinkOk(x.getItemUrl())).map(x->x.toChannel()).forEach(x->channels.add(x)) ;
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -106,9 +114,4 @@ class BigController {
 	}
 }
 
-@Data
-@AllArgsConstructor
-class Tag{
-private int value;
-private String mM;
-}
+ 
